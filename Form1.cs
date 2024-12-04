@@ -5,11 +5,14 @@ namespace WinformNotifications
 {
     public partial class Form1 : Form
     {
-        private Button btnShowToast;
-        private Button btnShowSuccess;
-        private Button btnShowError;
-        private Button btnShowPersistent;
-        private NotificationManager _notificationManager = new();
+        private List<int> _notificationIds = new();
+        private readonly Button _btnShowToast;
+        private readonly Button _btnShowSuccess;
+        private readonly Button _btnShowError;
+        private readonly Button _btnShowPersistent;
+        private readonly Button _btnClosePersistent;
+        private readonly ComboBox _cmbIds;
+        private INotificationManager _notificationManager = new NotificationManager();
 
 
         public Form1()
@@ -17,63 +20,104 @@ namespace WinformNotifications
             InitializeComponent();
 
             this.Text = "Notification Example";
-            this.Size = new Size(300, 400);
+            this.Size = new Size(350, 500);
 
-            Random random = new Random();
-            Bitmap bmp = new Bitmap(64, 64);
+            Random random = new();
+            Bitmap bmp = new(64, 64);
 
-            btnShowToast = new Button
+            _btnShowToast = new Button
             {
                 Text = "Show Notification",
                 Size = new Size(200, 40),
-                Location = new Point(50, 260)
+                Location = new Point(50, 190)
             };
-            btnShowToast.Click += (s, e) =>
+            _btnShowToast.Click += (s, e) =>
             {
                 var unique = random.Next(0, 5000);
                 var length = random.Next(200, 600);
                 var even = unique % 2 == 0;
-                _notificationManager.CreateNotification(
+                _notificationManager.ShowNotification(
+                    type: !even ? NotificationType.Loading : NotificationType.Standard,
                     title: $"{unique} Title",
                     message: $"This is a message {(even ? "without" : "with")} a loader; " + GenerateGarbageText(length),
-                    showLoader: !even,
                     customImage: even ? bmp : null);
             };
 
 
-            btnShowSuccess = new Button
+            _btnShowSuccess = new Button
             {
                 Text = "Show Success",
                 Size = new Size(200, 40),
                 Location = new Point(50, 50)
             };
-            btnShowSuccess.Click += (s, e) =>
+            _btnShowSuccess.Click += (s, e) =>
                 _notificationManager.ShowSuccess("Success", "Operation completed successfully!");
 
-            btnShowError = new Button
+            _btnShowError = new Button
             {
                 Text = "Show Error",
                 Size = new Size(200, 40),
                 Location = new Point(50, 120)
             };
-            btnShowError.Click += (s, e) =>
+            _btnShowError.Click += (s, e) =>
                 _notificationManager.ShowError("Error", "An error occurred!");
 
-            btnShowPersistent = new Button
+            _btnShowPersistent = new Button
             {
                 Text = "Show Persistent",
                 Size = new Size(200, 40),
-                Location = new Point(50, 190)
+                Location = new Point(50, 260)
             };
-            btnShowPersistent.Click += (s, e) =>
-                _notificationManager.CreateNotification("Persistent", "This notification will stay until clicked.", false, null, null, true);
+            _btnShowPersistent.Click += BtnShowPersistent_Click;
+
+            _cmbIds = new ComboBox
+            {
+                Width = 200,
+                Location = new Point(25, 340),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+            };
+            _btnClosePersistent = new Button
+            {
+                Text = "Close",
+                Size = new Size(100, 40),
+                Location = new Point(230, 330)
+            };
+            _btnClosePersistent.Click += _btnClosePersistent_Click;
 
 
+            this.Controls.Add(_btnShowToast);
+            this.Controls.Add(_btnShowSuccess);
+            this.Controls.Add(_btnShowError);
+            this.Controls.Add(_btnShowPersistent);
+            this.Controls.Add(_cmbIds);
+            this.Controls.Add(_btnClosePersistent);
+        }
 
-            this.Controls.Add(btnShowToast);
-            this.Controls.Add(btnShowSuccess);
-            this.Controls.Add(btnShowError);
-            this.Controls.Add(btnShowPersistent);
+        private void _btnClosePersistent_Click(object? sender, EventArgs e)
+        {
+            if(_cmbIds.SelectedItem is int id)
+            {
+                _notificationManager.CloseNotificationById(id);
+                _cmbIds.Items.Remove(id);
+                if (_cmbIds.Items.Count > 0)
+                {
+                    _cmbIds.SelectedIndex = 0;
+                }
+                    
+                Refresh();
+            }
+        }
+
+        private void BtnShowPersistent_Click(object? sender, EventArgs e)
+        {
+            var id = _notificationManager.ShowNotification(
+                    NotificationType.Persistant,
+                    "Persistent",
+                    "This notification will stay until clicked or closed from the form.");
+
+            _cmbIds.Items.Add(id);
+            _cmbIds.SelectedIndex = 0;
+            Refresh();
         }
 
         /// <summary>
@@ -82,9 +126,9 @@ namespace WinformNotifications
         private string GenerateGarbageText(int maxLength)
         {
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
-            Random random = new Random();
+            Random random = new();
             int length = random.Next(1, maxLength + 1);
-            StringBuilder builder = new StringBuilder(length);
+            StringBuilder builder = new(length);
 
             for (int i = 0; i < length; i++)
             {

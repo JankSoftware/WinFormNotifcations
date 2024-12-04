@@ -2,17 +2,18 @@
 {
     using System.Collections.Generic;
 
-    public class NotificationManager
+    public class NotificationManager : INotificationManager
     {
+        /// <summary>
+        /// vertical space between toasts
+        /// </summary>
+        private readonly int _toastSpacing = 10;
+
         /// <summary>
         /// holds the active notifications grouped by which monitor they belong to
         /// </summary>
         private Dictionary<string, List<Notification>> _activeNotifications;
 
-        /// <summary>
-        /// vertical space between toasts
-        /// </summary>
-        private readonly int _toastSpacing = 10;
         private Dictionary<string, Screen> _screens;
 
         public NotificationManager()
@@ -22,17 +23,93 @@
         }
 
         /// <summary>
-        /// Adds a connected screen to the list of available ones
-        /// <br /> used to arrange which notifications are on different displays
+        /// Creates and displays a standard toast notification.
         /// </summary>
-        private Screen SafeAddScreen(Screen screen)
+        private int CreateNotification(
+            NotificationType type,
+            string title,
+            string message,
+            int duration = 3000,
+            Image? customImage = null,
+            Color? backgroundColor = null)
         {
-            if (!_screens.ContainsKey(screen.DeviceName))
+            var activeScreen = SafeAddScreen(Screen.FromPoint(Cursor.Position));
+            var newNotification = type switch
             {
-                _screens.Add(screen.DeviceName, screen);
+                NotificationType.Standard => new Notification(
+                    title: title,
+                    message: message,
+                    monitorDeviceName: activeScreen.DeviceName,
+                    durationMs: duration,
+                    showLoader: false,
+                    customImage: customImage,
+                    backgroundColor: backgroundColor,
+                    persistent: false),
+                NotificationType.Loading => new Notification(
+                    title: title,
+                    message: message,
+                    monitorDeviceName: activeScreen.DeviceName,
+                    durationMs: duration,
+                    showLoader: true,
+                    customImage: null,
+                    backgroundColor: backgroundColor,
+                    persistent: true),
+                NotificationType.Persistant => new Notification(
+                    title: title,
+                    message: message,
+                    monitorDeviceName: activeScreen.DeviceName,
+                    durationMs: duration,
+                    showLoader: false,
+                    customImage: customImage,
+                    backgroundColor: backgroundColor,
+                    persistent: true),
+                NotificationType.Success => new Notification(
+                    title: title,
+                    message: message,
+                    monitorDeviceName: activeScreen.DeviceName,
+                    durationMs: duration,
+                    showLoader: false,
+                    customImage: customImage,
+                    backgroundColor: backgroundColor,
+                    persistent: false),
+                NotificationType.Error => new Notification(
+                    title: title,
+                    message: message,
+                    monitorDeviceName: activeScreen.DeviceName,
+                    durationMs: duration,
+                    showLoader: false,
+                    customImage: customImage,
+                    backgroundColor: backgroundColor,
+                    persistent: false),
+                _ => null
+            };
+
+            if (newNotification != null)
+            {
+                SafeAddNotification(activeScreen.DeviceName, newNotification);
+                newNotification.FormClosed += (_, __) => OnNotificationClosed(newNotification);
+                UpdateToastPositions();
+                newNotification.Show();
+                return newNotification.Id;
             }
 
-            return _screens[screen.DeviceName];
+            return 0;
+        }
+
+        /// <summary>
+        /// Called when a toast notification is closed.
+        /// </summary>
+        private void OnNotificationClosed(Notification notification)
+        {
+            foreach (var notificationList in _activeNotifications)
+            {
+                if (notificationList.Value.Remove(notification))
+                {
+                    break;
+                }
+            }
+
+            UpdateToastPositions();
         }
 
         /// <summary>
@@ -49,52 +126,17 @@
         }
 
         /// <summary>
-        /// Creates and displays a standard toast notification.
+        /// Adds a connected screen to the list of available ones
+        /// <br /> used to arrange which notifications are on different displays
         /// </summary>
-        public void CreateNotification(string title, string message, bool showLoader = false, Image? customImage = null, Color? backgroundColor = null, bool persistent = false)
+        private Screen SafeAddScreen(Screen screen)
         {
-            var activeScreen = SafeAddScreen(Screen.FromPoint(Cursor.Position));
-            var newNotification = new Notification(
-                title: title,
-                message: message,
-                monitorDeviceName: activeScreen.DeviceName,
-                durationMs: 3000,
-                showLoader: showLoader,
-                customImage: customImage,
-                backgroundColor: backgroundColor,
-                persistent: persistent);
-            SafeAddNotification(activeScreen.DeviceName, newNotification);
-            newNotification.FormClosed += (_, __) => OnNotificationClosed(newNotification);
-            UpdateToastPositions();
-            newNotification.Show();
-        }
+            if (!_screens.ContainsKey(screen.DeviceName))
+            {
+                _screens.Add(screen.DeviceName, screen);
+            }
 
-        /// <summary>
-        /// Creates and displays a green success notification.
-        /// </summary>
-        public void ShowSuccess(string title, string message)
-        {
-            CreateNotification(
-                title,
-                message,
-                false,
-                null,
-                Color.FromArgb(255, 50, 205, 50),
-                false);
-        }
-
-        /// <summary>
-        /// Creates and displays an red error notification.
-        /// </summary>
-        public void ShowError(string title, string message)
-        {
-            CreateNotification(
-                title,
-                message,
-                false,
-                null,
-                Color.FromArgb(255, 205, 50, 50),
-                false);
+            return _screens[screen.DeviceName];
         }
 
         /// <summary>
@@ -117,21 +159,61 @@
                         bottomOffset += toast.Height + _toastSpacing;
                     }
                 }
-
             }
         }
 
         /// <summary>
-        /// Called when a toast notification is closed.
+        /// Close a notification programatically by its Id
         /// </summary>
-        private void OnNotificationClosed(Notification toast)
+        /// <param name="notificationId">Id returned by notification creation</param>
+        public void CloseNotificationById(int notificationId)
         {
             foreach (var notificationList in _activeNotifications)
             {
-                notificationList.Value.Remove(toast);
+                if (notificationList.Value.FirstOrDefault(n => n.Id.Equals(notificationId)) is Notification match)
+                {
+                    notificationList.Value.Remove(match);
+                    match.Close();
+                    break;
+                }
             }
-
-            UpdateToastPositions();
         }
+
+        /// <summary>
+        /// Creates and displays an red error notification.
+        /// </summary>
+        public void ShowError(string title, string message) =>
+            CreateNotification(
+                type: NotificationType.Error,
+                title: title,
+                message: message,
+                duration: 3000,
+                customImage: null,
+                backgroundColor: Color.FromArgb(255, 205, 50, 50));
+
+        public int ShowNotification
+                                    (NotificationType type,
+            string title,
+            string message,
+            int durationMs = 3000,
+            Image? customImage = null) =>
+            CreateNotification(
+                type: type,
+                title: title,
+                message: message,
+                duration: durationMs,
+                customImage: customImage);
+
+        /// <summary>
+        /// Creates and displays a green success notification.
+        /// </summary>
+        public void ShowSuccess(string title, string message) =>
+            CreateNotification(
+                type: NotificationType.Success,
+                title: title,
+                message: message,
+                duration: 3000,
+                customImage: null,
+                backgroundColor: Color.FromArgb(255, 50, 205, 50));
     }
 }

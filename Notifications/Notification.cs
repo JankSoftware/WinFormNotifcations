@@ -32,6 +32,8 @@
         private Label _titleLabel;
         public string ParentMonitor => _parentMonitorName;
 
+        public int Id { get; private set; }
+
         public Notification(
             string title,
             string message,
@@ -49,8 +51,8 @@
                 Convert.ToInt32(_notificationSize.Width * _dpiScale),
                 Convert.ToInt32(_notificationSize.Height * _dpiScale));
 
-            _titleFont = new System.Drawing.Font("Tahoma", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point);
-            _messageFont = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            _titleFont = new Font("Tahoma", 11.25F, FontStyle.Bold, GraphicsUnit.Point);
+            _messageFont = new Font("Tahoma", 9.75F, FontStyle.Regular, GraphicsUnit.Point);
 
             // DPI scaling
             this.AutoScaleMode = AutoScaleMode.Dpi;
@@ -78,6 +80,7 @@
 
             EnableOpacity();
             AddClickEventHandlers(this);
+            Id = this.GetHashCode();
         }
 
         // P/Invoke for creating a region with rounded corners

@@ -7,7 +7,7 @@
         /// <summary>
         /// Decreasing colors for each orb
         /// </summary>
-        private List<Color> _ballColors = new List<Color>();
+        private List<Color> _ballColors = new();
 
         /// <summary>
         /// Number of orbs in the circle
@@ -31,7 +31,7 @@
         /// </summary>
         private int _pathRadius;
 
-        private Size _size = new Size(64, 64);
+        private Size _size = new(64, 64);
 
         /// <summary>
         /// Update per x milliseconds
